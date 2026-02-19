@@ -23,7 +23,7 @@ services:
     volumes:
       - ./baseq3:/opt/quake3/baseq3
       - ./osp:/opt/quake3/osp
-      - ./files/default-configs:/opt/quake3/default-configs      
+      - ./files/default-configs:/opt/quake3/default-configs
       - ./files/configs/osp:/opt/quake3/configs
     environment:
       - SERVER_ARGS=+set fs_game osp +exec ctf.cfg
@@ -49,8 +49,8 @@ services:
   fastdl:
     image: nginx:1.27-alpine
     container_name: fastdl
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
     volumes:
       - ./fastdl/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./fastdl/public:/usr/share/nginx/html:ro
@@ -63,8 +63,8 @@ services:
       - quake1
       - quake2
       - quake3
-    ports:
-      - "80:3000"
+    expose:
+      - "3000"
     environment:
       PORT: 3000
       SERVERS_JSON: |
@@ -73,3 +73,26 @@ services:
           {"name": "OSP", "host": "quake2", "port": 27960, "displayPort": 27961},
           {"name": "Q3TA", "host": "quake3", "port": 27960, "displayPort": 27962}
         ]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: quake-caddy
+    restart: unless-stopped
+    depends_on:
+      - landing
+      - fastdl
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # For HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - FASTDL_SUBDOMAIN=${FASTDL_SUBDOMAIN:-_disabled.local}
+
+volumes:
+  caddy-data:
+  caddy-config:
