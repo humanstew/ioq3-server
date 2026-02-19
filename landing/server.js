@@ -55,6 +55,7 @@ async function fetchStatus(server) {
 }
 
 function renderHtml(statuses) {
+  const year = new Date().getFullYear();
   const rows = statuses
     .map((status, index) => {
       const zebra = index % 2 === 0 ? '#1a1a1a' : '#111';
@@ -90,7 +91,7 @@ function renderHtml(statuses) {
   body {
     margin: 0;
     font-family: 'Verdana', 'Geneva', sans-serif;
-    background-color: #000; /* plain dark background */
+    background-color: #000;
     color: #f9f9f9;
   }
   .wrapper {
@@ -111,6 +112,26 @@ function renderHtml(statuses) {
     max-width: 220px;
     height: auto;
     display: inline-block;
+  }
+  .github-link {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+  .github-link img {
+    width: 20px;
+    height: auto;
+    display: inline-block;
+    filter: drop-shadow(0 0 6px rgba(0,0,0,0.6));
+    vertical-align: middle;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,174,0,0.08);
+    color: #888;
+    font-size: 12px;
   }
   h1 {
     font-size: 48px;
@@ -143,6 +164,7 @@ function renderHtml(statuses) {
       ${rows}
     </tbody>
   </table>
+  <div class="footer">© ${year} <a href="https://github.com/klexxp" style="color:#ffdd57; text-decoration:none;">klexxp</a> — frag responsibly <a class="github-link" href="https://github.com/klexxp/ioq3-server" target="_blank" rel="noopener noreferrer"><img src="/github-mark.svg" alt="GitHub project" /></a></div>
 </div>
 </body>
 <script>
