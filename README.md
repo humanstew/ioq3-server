@@ -6,7 +6,7 @@
 
 1. **Clone this repository:**
    ```sh
-   git clone https://github.com/klexxp/ioq3-server.git
+   git clone https://github.com/humanstew/ioq3-server.git
    cd ioq3-server
    ```
 2. **Add your Quake 3 game data:**
