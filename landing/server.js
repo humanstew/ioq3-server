@@ -164,8 +164,8 @@ function renderHtml(statuses) {
       ${rows}
     </tbody>
   </table>
-  <div class="footer">© ${year} <a href="https://github.com/klexxp" style="color:#ffdd57; text-decoration:none;">klexxp</a> — frag responsibly <a class="github-link" href="https://github.com/klexxp/ioq3-server" target="_blank" rel="noopener noreferrer"><img src="/github-mark.svg" alt="GitHub project" /></a></div>
-</div>
+  </div>
+  <div class="footer">© ${year} <a href="https://github.com/humanstew" style="color:#ffdd57; text-decoration:none;">humanstew</a> — frag responsibly <a class="github-link" href="https://github.com/humanstew/ioq3-server" target="_blank" rel="noopener noreferrer"><img src="/github-mark.svg" alt="GitHub project" /></a></div>
 </body>
 <script>
   // no background/character script
