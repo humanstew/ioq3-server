@@ -1,160 +1,154 @@
-# ioq3-server: Multi instance ioquake3 setup 
+# ioq3-server: Multi-instance ioquake3 dedicated server stack
 
 ![Quake 3 Arena](https://upload.wikimedia.org/wikipedia/de/7/78/Quake_III_Arena_Logo.svg)
 
-## 🚀 Quick Start
+## Quick Start
 
-1. **Clone this repository:**
+1. **Clone and add game data:**
    ```sh
    git clone https://github.com/humanstew/ioq3-server.git
    cd ioq3-server
    ```
-2. **Add your Quake 3 game data:**
-  - Place your `pak0.pk3` (and optionally other .pk3 files) in the `baseq3/` directory.
-  - For Team Arena, add .pk3 files to `missionpack/`.
-  - ⚠️ **pak0.pk3 is not included in this repository due to copyright. You must provide your own.**
-  - `.gitignore` is set to exclude pak0.pk3 files for safety.
-  - Optional: drop non-standard/custom maps into both `baseq3/` (so the server can load them) **and** `fastdl/public/baseq3/` (so clients can download them). Team Arena customs go into the matching `missionpack/` folders.
-3. **Build and launch multiple servers:**
+   Place `pak0.pk3` (and other `.pk3` files) in `gamedata/baseq3/`. For Team Arena, add `.pk3` files to `gamedata/missionpack/`.
+
+   > `pak0.pk3` is not included due to copyright. You must provide your own from a Quake 3 installation.
+
+2. **Run setup:**
    ```sh
-   docker compose up --build
+   ./setup.sh
    ```
-   - This will start three server instances (see `docker-compose.yml`).
-  - Each instance uses its own config and port (27960, 27961, 27962) plus:
-    - `fastdl` on port 8080 for HTTP map downloads.
-    - `landing` on port 8081 serving an old-school server status page.
+   This checks prerequisites, creates your `.env` file, and validates game data.
 
-## 🛠️ Configuration
-- **Configs:** Place all your server configs (e.g. `server-ffa.cfg`, `server-ctf.cfg`, `server-mp.cfg`) in the `configs/` directory. Each server instance uses its own config via the `SERVER_ARGS` environment variable.
-- **Environment Variables:**
-  - `SERVER_ARGS` (e.g. `+exec server-ffa.cfg`)
-  - `SERVER_MOTD` (server message)
-  - `ADMIN_PASSWORD` (RCON password, auto-generated if unset)
-  - `FASTDL_URL` (public HTTP(S) base path for map downloads; defaults to `http://localhost:8080` in `docker-compose.yml`)
-- **Volumes:**
-  - Game data in `baseq3/` is persisted and shared between instances (mounted read/write so configs can be copied at startup).
-  - Configs in `configs/` are editable and copied into the game directory at startup.
-  - Fast-download assets live in `fastdl/public/` and are served read-only by Nginx. Only place files there that you want the public to fetch (avoid official pak0.pk3).
+3. **Build and launch:**
+   ```sh
+   make build up
+   ```
+   Or directly: `docker compose up --build -d`
 
-## 🐳 Docker Compose Example
-```yaml
-services:
-  quake1:
-    build: .
-    image: ioq3-server
-    container_name: quake1
-    ports:
-      - "27960:27960/udp"
-    volumes:
-      - ./baseq3:/opt/quake3/baseq3
-      - ./configs:/opt/quake3/configs
-    environment:
-      - SERVER_ARGS=+exec server-ffa.cfg
-  quake2:
-    build: .
-    image: ioq3-server
-    container_name: quake2
-    ports:
-      - "27961:27960/udp"
-    volumes:
-      - ./baseq3:/opt/quake3/baseq3
-      - ./configs:/opt/quake3/configs
-    environment:
-      - SERVER_ARGS=+exec server-ctf.cfg
-  quake3:
-    build: .
-    image: ioq3-server
-    container_name: quake3
-    ports:
-      - "27962:27960/udp"
-    volumes:
-      - ./baseq3:/opt/quake3/baseq3
-      - ./configs:/opt/quake3/configs
-    environment:
-      - SERVER_ARGS=+exec server-mp.cfg
-      - FASTDL_URL=http://localhost:8080
+## Common Commands
 
-  fastdl:
-    image: nginx:1.27-alpine
-    container_name: fastdl
-    ports:
-      - "8080:80"
-    volumes:
-      - ./fastdl/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./fastdl/public:/usr/share/nginx/html:ro
+Run `make` to see all available commands:
+
+```
+setup           Run initial setup (prerequisites, .env, game data check)
+build           Build Docker images
+up              Start all services in background
+down            Stop all services
+restart         Restart all services
+logs            Tail logs from all services
+status          Show service status and health
+clean           Remove containers, volumes, and built images
 ```
 
-## ⚡ Fast Download Server
-- `fastdl` is an Nginx container that serves the contents of `baseq3/` and `missionpack/` over HTTPS (via Caddy) with directory listings enabled.
-- Accessible via two methods:
-  - **Path-based** (default): `https://yourdomain.com/fastdl`
-  - **Subdomain**: Set `FASTDL_SUBDOMAIN=cdn.yourdomain.com` for `https://cdn.yourdomain.com`
-- Update `FASTDL_URL` to match your chosen method so clients can fetch custom maps quickly.
-- SSL certificates are automatically managed by Caddy (Let's Encrypt).
-- Files remain read-only inside the container, preventing accidental deletion.
-- Only copy non-standard maps into `fastdl/public/baseq3` or `fastdl/public/missionpack` so official assets like `pak0.pk3` are never exposed publicly.
+## Project Structure
 
-## 🖥️ Status Page
-- `landing` is a Node/Express app that queries each server via UDP and renders a 90s-style table showing online/offline state, map, and player counts.
-- Configure displayed servers via the `SERVERS_JSON` environment variable in `docker-compose.yml` (defaults target the bundled `quake1-3` services).
-- Access via HTTPS at your domain (e.g., `https://quake.example.com`).
+```
+server/                  # Game server build & config
+├── Dockerfile
+├── entrypoint.sh
+└── configs/
+    ├── shared/          # Common to all servers
+    ├── quake1-ffa/      # FFA server configs
+    ├── quake2-osp/      # OSP CTF server configs
+    └── quake3-ta/       # Team Arena server configs
 
-### SSL/TLS with Let's Encrypt
-- Both the landing page and fastdl are served through Caddy, which automatically obtains and renews Let's Encrypt SSL certificates.
-- **Requirements:**
-  - Set the `DOMAIN` environment variable to your fully qualified domain name (e.g., `quake.example.com`)
-  - Ensure ports 80 and 443 are accessible from the internet
-  - Your DNS must point to your server's public IP
-  - (Optional) Set `FASTDL_SUBDOMAIN` if you want fastdl on a separate subdomain
-- **Example `.env` configurations:**
-  
-  Path-based fastdl (default):
-  ```sh
-  DOMAIN=quake.example.com
-  FASTDL_URL=https://quake.example.com/fastdl
-  ```
-  
-  Subdomain-based fastdl:
-  ```sh
-  DOMAIN=quake.example.com
-  FASTDL_SUBDOMAIN=cdn.quake.example.com
-  FASTDL_URL=https://cdn.quake.example.com
-  ```
-- Caddy stores certificates in Docker volumes (`caddy-data` and `caddy-config`) for persistence across restarts.
-- For development/testing without a domain, Caddy will use a self-signed certificate when `DOMAIN=localhost`.
+mods/                    # Game mods
+└── osp/                 # OSP mod (needs zz-osp-*.pk3)
 
-## 🔒 Security
-- Runs as non-root user (`ioq3ded`) inside the container.
-- Only the dedicated server binary is included in the final image.
+web/                     # Web-facing services
+├── Caddyfile            # Reverse proxy config
+├── landing/             # Status page (Node/Express)
+└── fastdl/              # Fast download (Nginx)
 
-## 🧩 Advanced Usage
+gamedata/                # Runtime game data (user-supplied)
+├── baseq3/              # Base Q3 pak files
+└── missionpack/         # Team Arena pak files
+```
+
+## Services
+
+| Service   | Description                        | Port(s)         |
+|-----------|------------------------------------|-----------------|
+| `quake1`  | FFA server                         | UDP 27960       |
+| `quake2`  | OSP CTF server                     | UDP 27961       |
+| `quake3`  | Team Arena (missionpack) server    | UDP 27962       |
+| `fastdl`  | Nginx serving custom `.pk3` files  | internal        |
+| `landing` | Server status page (Node/Express)  | internal        |
+| `caddy`   | Reverse proxy with auto-HTTPS      | 80, 443         |
+
+All services include health checks. Use `make status` to see their state.
+
+## Configuration
+
+### Environment Variables
+
+Set these in your `.env` file (created by `./setup.sh` from `.env.example`):
+
+| Variable           | Description                                      | Default                         |
+|--------------------|--------------------------------------------------|---------------------------------|
+| `DOMAIN`           | FQDN for Let's Encrypt SSL                       | `localhost`                     |
+| `FASTDL_SUBDOMAIN` | Optional subdomain for FastDL                    | disabled                        |
+| `FASTDL_URL`       | Public URL clients use to download maps           | `http://localhost/fastdl`       |
+| `ADMIN_PASSWORD`   | RCON password (auto-generated if unset)           | random                          |
+| `SERVER_MOTD`      | Message of the day                                | `Welcome to my Quake 3 server!` |
+| `FFA_CONFIG`       | FFA server config file                            | `server-ffa.cfg`                |
+| `Q3TA_CONFIG`      | Team Arena server config file                     | `server-mp.cfg`                 |
+| `MAPS_FFA`         | FFA map rotation config                           | `maps-ffa.cfg`                  |
+| `MAPS_Q3TA`        | Team Arena map rotation config                    | `maps-q3ta.cfg`                 |
+| `SITE_TITLE`       | Landing page title                                | `IOQ3 SERVER`                   |
+| `SITE_SUBTITLE`    | Landing page subtitle                             | empty                           |
+| `SITE_GITHUB_USER` | GitHub username for footer link                   | empty                           |
+
+### Server Configs
+
+At startup, the entrypoint copies `shared/` configs into `baseq3/` first, then the server-specific configs on top. To customize, edit the files in the relevant `server/configs/` subdirectory.
+
+## Fast Download Server
+
+The `fastdl` service is an Nginx container serving custom `.pk3` files over HTTP, proxied through Caddy with HTTPS.
+
+- **Path-based** (default): `https://yourdomain.com/fastdl`
+- **Subdomain**: Set `FASTDL_SUBDOMAIN=cdn.yourdomain.com` for `https://cdn.yourdomain.com`
+- Place custom maps in `web/fastdl/public/baseq3/` or `web/fastdl/public/missionpack/`.
+- Do not place official `pak0.pk3` in `web/fastdl/public/`.
+
+## Status Page
+
+The `landing` service queries each server via UDP and shows server status, current map, and player counts. Accessible at your domain root (e.g., `https://quake.example.com`).
+
+Customize the title, subtitle, and branding via the `SITE_*` environment variables. Configure displayed servers via `SERVERS_JSON` in `docker-compose.yml`.
+
+## SSL/TLS
+
+Caddy automatically obtains and renews Let's Encrypt certificates.
+
+**Requirements:**
+- Set `DOMAIN` to your FQDN
+- Ports 80 and 443 must be accessible from the internet
+- DNS must point to your server's public IP
+
+For local development, `DOMAIN=localhost` uses a self-signed certificate.
+
+## Advanced Usage
+
 - **Change ioquake3 version:**
   ```sh
-  docker build --build-arg IOQUAKE3_COMMIT=release-1.36 -t ioq3-server .
+  docker build --build-arg IOQUAKE3_COMMIT=release-1.36 -t ioq3-server ./server
   ```
-- **Custom configs:** Mount your own config directory or edit `files/default-configs/`.
-- **Multiple servers:** Add more services in `docker-compose.yml` as needed.
+- **Add more servers:** Duplicate a service block in `docker-compose.yml` with a new port mapping.
 
-## 📂 Key Files & Directories
-- `Dockerfile` — Automated build, fetches ioquake3 source from GitHub
-- `docker-compose.yml` — Multi-instance orchestration
-- `files/entrypoint.sh` — Startup logic, config management
-- `baseq3/`, `missionpack/` — Game assets (pak files, not included)
-- `configs/` — All server configs (editable, copied into baseq3 at startup)
-- `files/default-configs/` — Default server configs
+## FAQ
 
-## 🙋 FAQ
-- **Q: Why do I need to provide `pak0.pk3`?**
-  - A: Due to licensing, you must supply your own Quake 3 data files. pak0.pk3 is not included in this repository and must be added manually.
-- **Q: How do I connect?**
-  - A: Use your server's IP and the mapped port (e.g., `quake3://your-ip:27960`).
-- **Q: How do I set the RCON password?**
-  - A: Set the `ADMIN_PASSWORD` environment variable or let it auto-generate.
+**Q: Why do I need to provide `pak0.pk3`?**
+Game data files are copyrighted and cannot be distributed. You must supply your own.
 
-## 📜 License
-- This project automates ioquake3 server deployment. Quake 3 data files are not included.
-- See [ioquake3 license](https://github.com/ioquake/ioq3/blob/master/COPYING.txt) for engine details.
+**Q: How do I connect?**
+Use your server's IP and the mapped port, e.g. `/connect your-ip:27960`.
 
----
+**Q: How do I set the RCON password?**
+Set `ADMIN_PASSWORD` in your `.env` file, or leave it empty for an auto-generated password.
 
-> Made with ❤️ for easy Quake 3 server hosting. Frag on!
+## License
+
+This project automates ioquake3 server deployment. Quake 3 data files are not included.
+See the [ioquake3 license](https://github.com/ioquake/ioq3/blob/master/COPYING.txt) for engine details.
