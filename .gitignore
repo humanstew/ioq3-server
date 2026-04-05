@@ -1,7 +1,22 @@
-# Ignore all Quake pak files
-*.pk3
-/baseq3/*.cfg
+# Game data (pk3s in game dirs are large binaries, keep out of git)
+gamedata/**/*.pk3
+gamedata/**/*.cfg
+gamedata/**/logs/
 
-# Keep node_modules out of the repo
-landing/node_modules/
+# Environment
 .env
+
+# Node
+web/landing/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
